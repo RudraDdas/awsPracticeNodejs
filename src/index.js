@@ -5,8 +5,11 @@ const router = express()
 router.use(cors())
 router.use(bodyParser.json());
 router.use(bodyParser.urlencoded({ extended: true }));
+
 const AWS = require("aws-sdk");
 const s3 = new AWS.S3({ apiVersion: '2006-03-01', region: 'ap-south-1', accessKeyId: 'AKIA4MRECWEHDMVSXGFP', secretAccessKey: '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' });
+const sqs = new AWS.SQS({ apiVersion: '2012-11-05', region: 'ap-south-1', accessKeyId: 'AKIA4MRECWEHDMVSXGFP', secretAccessKey: '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' })
+
 const multer = require('multer')
 const storage = multer.memoryStorage()
 const upload = multer({
@@ -57,6 +60,77 @@ router.delete("/deleteinsertimg", async (req, res) => {
 
     } catch (error) {
         console.log(error)
+        res.status(500).send(error.message)
+    }
+})
+
+router.post('/createQueue', async (req, res) => {
+    try {
+        if (!req.body.queName) {
+            console.log("Parameter Missing =====> Quename", req.body)
+            res.status(404).send("Que name can not be empty")
+        } else {
+            console.log("postrequest", req.body.queName)
+            const params = {
+                QueueName: req.body.queName,
+                Attributes: {
+                    'DelaySeconds': '6',
+                    'MessageRetentionPeriod': '86400'
+                }
+            }
+            const result = await sqs.createQueue(params, (error, data) => {
+                if (error) {
+                    res.status(300).send(error.message)
+                } else {
+                    res.status(200).send(data)
+                }
+            })
+        }
+    } catch (error) {
+        res.status(500).send(error.message)
+    }
+
+})
+
+router.post("/sendmessage", async (req, res) => {
+    try {
+        const sqsArr = []
+        for (let index = 0; index < 10; index++) {
+            const params = {
+                MessageBody: `the queues are${index}`,
+                QueueUrl: "https://sqs.ap-south-1.amazonaws.com/851552940302/SQS_rudra_1st",
+                DelaySeconds: 5,
+            }
+            const sqsResult = await sqs.sendMessage(params).promise()
+            sqsArr.push(sqsResult)
+        }
+        console.log("new message", sqsArr)
+        res.status(200).send(sqsArr)
+        // const result = await sqs.sendMessage()
+    } catch (error) {
+        console.log("internal server Error", error.message)
+        res.status(500).send(error.message)
+    }
+})
+
+router.get("/removemsg", async (req, res) => {
+    try {
+        const paramsObj = {
+            QueueUrl: "https://sqs.ap-south-1.amazonaws.com/851552940302/SQS_rudra_1st"
+        }
+        const receivedData = await sqs.receiveMessage(paramsObj).promise()
+        if (receivedData) {
+            // res.status(200).send(receivedData)
+            const deleteUrl = {
+                QueueUrl: "https://sqs.ap-south-1.amazonaws.com/851552940302/SQS_rudra_1st",
+                ReceiptHandle: receivedData.Messages[0].ReceiptHandle
+            }
+            const deleteMsg = await sqs.deleteMessage(deleteUrl).promise()
+            if (deleteMsg) {
+                res.status(200).send(deleteMsg)
+            }
+        }
+    } catch (error) {
         res.status(500).send(error.message)
     }
 })
