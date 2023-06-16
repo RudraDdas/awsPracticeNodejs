@@ -7,8 +7,8 @@ router.use(bodyParser.json());
 router.use(bodyParser.urlencoded({ extended: true }));
 
 const AWS = require("aws-sdk");
-const s3 = new AWS.S3({ apiVersion: '2006-03-01', region: 'ap-south-1', accessKeyId: 'AKIA4MRECWEHDMVSXGFP', secretAccessKey: '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' });
-const sqs = new AWS.SQS({ apiVersion: '2012-11-05', region: 'ap-south-1', accessKeyId: 'AKIA4MRECWEHDMVSXGFP', secretAccessKey: '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' })
+const s3 = new AWS.S3({ apiVersion: '2006-03-01', region: 'ap-south-1', accessKeyId: process.env.ACCESSId, secretAccessKey: process.env.SecreateKey });
+const sqs = new AWS.SQS({ apiVersion: '2012-11-05', region: 'ap-south-1', accessKeyId: process.env.ACCESSId, secretAccessKey: process.env.SecreateKey })
 
 const multer = require('multer')
 const storage = multer.memoryStorage()
@@ -98,7 +98,7 @@ router.post("/sendmessage", async (req, res) => {
         for (let index = 0; index < 10; index++) {
             const params = {
                 MessageBody: `the queues are${index}`,
-                QueueUrl: "https://sqs.ap-south-1.amazonaws.com/851552940302/SQS_rudra_1st",
+                QueueUrl: process.env.SQS_QUEUE,
                 DelaySeconds: 5,
             }
             const sqsResult = await sqs.sendMessage(params).promise()
@@ -116,13 +116,13 @@ router.post("/sendmessage", async (req, res) => {
 router.get("/removemsg", async (req, res) => {
     try {
         const paramsObj = {
-            QueueUrl: "https://sqs.ap-south-1.amazonaws.com/851552940302/SQS_rudra_1st"
+            QueueUrl: process.env.SQS_QUEUE
         }
         const receivedData = await sqs.receiveMessage(paramsObj).promise()
         if (receivedData) {
             // res.status(200).send(receivedData)
             const deleteUrl = {
-                QueueUrl: "https://sqs.ap-south-1.amazonaws.com/851552940302/SQS_rudra_1st",
+                QueueUrl: process.env.SQS_QUEUE,
                 ReceiptHandle: receivedData.Messages[0].ReceiptHandle
             }
             const deleteMsg = await sqs.deleteMessage(deleteUrl).promise()
